@@ -11,9 +11,13 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const folder = searchParams.get("folder") || "";
     const token = searchParams.get("token") || undefined;
-    const pageSize = 20;
+    const pageSize = 5;
 
-    const { Contents = [] } = await s3.send(
+    const {
+        Contents = [],
+        NextContinuationToken,
+        IsTruncated,
+    } = await s3.send(
         new ListObjectsV2Command({
             Bucket: BUCKET,
             Prefix: folder ? `${folder}/` : undefined,
@@ -35,5 +39,9 @@ export async function GET(req: Request) {
         })),
     );
 
-    return Response.json({ files });
+    return Response.json({
+        files,
+        nextToken: NextContinuationToken ?? null,
+        hasMore: IsTruncated ?? false,
+    });
 }
