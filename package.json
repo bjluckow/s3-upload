@@ -1,7 +1,11 @@
 {
-    "name": "s3-upload",
+    "name": "s3-microfe",
     "version": "0.1.0",
-    "private": true,
+    "author": "Benjamin Luckow (https://github.com/bjluckow)/",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/bjluckow/s3-upload"
+    },
     "scripts": {
         "dev": "next dev",
         "build": "next build",
