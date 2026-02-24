@@ -1,20 +1,36 @@
 "use client";
 import { FilePond, registerPlugin } from "react-filepond";
+import FilePondPluginImagePreview from "filepond-plugin-image-preview";
+import FilePondPluginFileValidateType from "filepond-plugin-file-validate-type";
+import FilePondPluginImageExifOrientation from "filepond-plugin-image-exif-orientation";
+
 import "filepond/dist/filepond.min.css";
+import "filepond-plugin-image-preview/dist/filepond-plugin-image-preview.css";
+
+registerPlugin(
+    FilePondPluginImageExifOrientation,
+    FilePondPluginImagePreview,
+    FilePondPluginFileValidateType,
+);
 
 interface UploadProps {
     folder?: string;
     onUploadComplete?: () => void;
+    imagePreviewHeight?: number;
 }
 
 export default function Upload({
     folder = "uploads",
     onUploadComplete,
+    imagePreviewHeight,
 }: UploadProps) {
     return (
         <FilePond
             allowMultiple={true}
             onprocessfile={onUploadComplete}
+            onremovefile={onUploadComplete}
+            allowImagePreview={!!imagePreviewHeight}
+            imagePreviewHeight={imagePreviewHeight}
             server={{
                 process: async (
                     _fieldName,
@@ -44,6 +60,15 @@ export default function Upload({
                     xhr.send(file);
 
                     return { abort: () => xhr.abort() };
+                },
+
+                revert: async (key, load, error) => {
+                    const res = await fetch("/api/upload/key", {
+                        method: "DELETE",
+                        body: key,
+                    });
+                    if (res.ok) load();
+                    else error("Delete failed");
                 },
             }}
         />
