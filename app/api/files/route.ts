@@ -5,16 +5,20 @@ import { s3, BUCKET } from "@/lib/s3";
 
 export async function GET(req: Request) {
     const session = await auth();
-    if (!session)
+    if (!session && !!process.env.AUTH_DOMAIN)
         return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     const { searchParams } = new URL(req.url);
     const folder = searchParams.get("folder") || "";
+    const token = searchParams.get("token") || undefined;
+    const pageSize = 20;
 
     const { Contents = [] } = await s3.send(
         new ListObjectsV2Command({
             Bucket: BUCKET,
             Prefix: folder ? `${folder}/` : undefined,
+            MaxKeys: pageSize,
+            ContinuationToken: token,
         }),
     );
 

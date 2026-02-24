@@ -5,7 +5,7 @@ import { s3, BUCKET } from "@/lib/s3";
 
 export async function POST(req: Request) {
     const session = await auth();
-    if (!session)
+    if (!session && !!process.env.AUTH_DOMAIN)
         return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     const { filename, contentType, folder } = await req.json();
