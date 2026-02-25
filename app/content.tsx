@@ -26,7 +26,7 @@ export default function HomePageContent() {
         <div className="space-y-8 p-16">
             {!locked && (
                 <section>
-                    <h2 className="mb-2 text-lg font-semibold">Folder</h2>
+                    <h2 className="mb-2 text-lg font-semibold">Folder </h2>
                     <form onSubmit={handleFolderSubmit} className="flex gap-2">
                         <input
                             type="text"
@@ -47,7 +47,14 @@ export default function HomePageContent() {
 
             <section>
                 <h2 className="mb-4 text-lg font-semibold">
-                    Upload to <span className="opacity-50">{folder}</span>
+                    Upload to <span className="opacity-60">{folder}</span>{" "}
+                    <span className="opacity-30">
+                        (powered by{" "}
+                        <a href="https://pqina.nl" className="underline">
+                            pqina.nl
+                        </a>
+                        )
+                    </span>
                 </h2>
                 <Upload
                     folder={folder}
