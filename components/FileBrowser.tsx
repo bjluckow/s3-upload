@@ -19,6 +19,13 @@ export default function FileBrowser({
     const [loading, setLoading] = useState(true);
     const [nextToken, setNextToken] = useState<string | null>(null);
     const [hasMore, setHasMore] = useState(false);
+    const [totalFiles, setTotalFiles] = useState<number | null>(null);
+
+    useEffect(() => {
+        fetch(`/api/files/count?folder=${encodeURIComponent(folder)}`)
+            .then((r) => r.json())
+            .then((data) => setTotalFiles(data.total));
+    }, [refreshKey, folder]);
 
     function fetchFiles(token?: string, append = false) {
         setLoading(true);
@@ -54,6 +61,9 @@ export default function FileBrowser({
 
     return (
         <div className="space-y-4">
+            {totalFiles !== null && (
+                <p className="text-sm opacity-50">{totalFiles} total files</p>
+            )}
             <table className="w-full text-sm">
                 <thead>
                     <tr className="border-b border-white/10 text-left opacity-50">
