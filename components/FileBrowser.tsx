@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import FileSearch from "./FileSearch";
 
 interface FileEntry {
     key: string;
@@ -20,6 +21,10 @@ export default function FileBrowser({
     const [nextToken, setNextToken] = useState<string | null>(null);
     const [hasMore, setHasMore] = useState(false);
     const [totalFiles, setTotalFiles] = useState<number | null>(null);
+    const [searchResults, setSearchResults] = useState<FileEntry[] | null>(
+        null,
+    );
+    const displayFiles = searchResults ?? files;
 
     useEffect(() => {
         fetch(`/api/files/count?folder=${encodeURIComponent(folder)}`)
@@ -64,6 +69,7 @@ export default function FileBrowser({
             {totalFiles !== null && (
                 <p className="text-sm opacity-50">{totalFiles} total files</p>
             )}
+            <FileSearch folder={folder} onResults={setSearchResults} />
             <table className="w-full text-sm">
                 <thead>
                     <tr className="border-b border-white/10 text-left opacity-50">
@@ -74,7 +80,7 @@ export default function FileBrowser({
                     </tr>
                 </thead>
                 <tbody>
-                    {files.map((f) => (
+                    {displayFiles.map((f) => (
                         <tr key={f.key} className="border-b border-white/5">
                             <td className="py-2">{f.key.split("/").pop()}</td>
                             <td className="py-2 opacity-50">
@@ -98,7 +104,7 @@ export default function FileBrowser({
                 </tbody>
             </table>
 
-            {hasMore && (
+            {!searchResults && hasMore && (
                 <button
                     onClick={() => fetchFiles(nextToken ?? undefined, true)}
                     disabled={loading}
