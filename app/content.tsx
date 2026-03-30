@@ -25,35 +25,31 @@ export default function HomePageContent() {
 
     return (
         <div className="space-y-8 p-16">
-            {!locked ? (
-                <form onSubmit={handleFolderSubmit} className="flex gap-2">
-                    <FolderPicker
-                        value={folderInput}
-                        onChange={setFolderInput}
-                    />
-                    <button
-                        type="submit"
-                        className="rounded bg-white/10 px-3 py-1 text-sm transition-colors hover:bg-white/20"
-                    >
-                        Set
-                    </button>
-                </form>
-            ) : (
-                <p className="text-sm opacity-50">
-                    Uploading to <b className="opacity-100">{folder}</b>
-                </p>
-            )}
+            <section>
+                <h2 className="mb-2 text-lg font-semibold">Folder</h2>
+                {!locked ? (
+                    <form onSubmit={handleFolderSubmit} className="flex gap-2">
+                        <FolderPicker
+                            value={folderInput}
+                            onChange={setFolderInput}
+                        />
+                        <button
+                            type="submit"
+                            className="rounded bg-white/10 px-3 py-1 text-sm transition-colors hover:bg-white/20"
+                        >
+                            Set
+                        </button>
+                    </form>
+                ) : (
+                    <p className="text-sm opacity-50">
+                        Uploading to <b className="opacity-100">{folder}</b>
+                    </p>
+                )}
+            </section>
 
             <section>
                 <h2 className="mb-4 text-lg font-semibold">
                     Upload to <span className="opacity-60">{folder}</span>{" "}
-                    <span className="opacity-30">
-                        (powered by{" "}
-                        <a href="https://pqina.nl" className="underline">
-                            pqina.nl
-                        </a>
-                        )
-                    </span>
                 </h2>
                 <Upload
                     folder={folder}

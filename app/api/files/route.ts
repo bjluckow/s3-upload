@@ -23,6 +23,7 @@ export async function GET(req: Request) {
             Prefix: folder ? `${folder}/` : undefined,
             MaxKeys: pageSize,
             ContinuationToken: token,
+            Delimiter: "/",
         }),
     );
 

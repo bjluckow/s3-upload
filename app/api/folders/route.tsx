@@ -12,13 +12,19 @@ export async function GET() {
 
     do {
         const { Contents = [], NextContinuationToken } = await s3.send(
-            new ListObjectsV2Command({ Bucket: BUCKET, ContinuationToken: token })
+            new ListObjectsV2Command({
+                Bucket: BUCKET,
+                ContinuationToken: token,
+            }),
         );
 
         for (const obj of Contents) {
             if (!obj.Key) continue;
-            const parts = obj.Key.split('/');
-            if (parts.length > 1) folders.add(parts[0]);
+            const parts = obj.Key.split("/");
+            // Add every prefix level, e.g. "a", "a/b", "a/b/c"
+            for (let i = 1; i < parts.length; i++) {
+                folders.add(parts.slice(0, i).join("/"));
+            }
         }
 
         token = NextContinuationToken;
@@ -26,3 +32,4 @@ export async function GET() {
 
     return Response.json({ folders: Array.from(folders).sort() });
 }
+
