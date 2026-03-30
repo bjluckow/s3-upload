@@ -2,11 +2,48 @@
 import { useRef, useState } from "react";
 import { zipFolder } from "@/lib/zip";
 
-type Stage = "idle" | "zipping" | "uploading" | "done" | "error";
+type Stage = "idle" | "zipping" | "uploading";
 
 interface UploadFolderProps {
     folder?: string;
     onFileChange?: () => void;
+}
+
+async function readAllEntries(
+    reader: FileSystemDirectoryReader,
+): Promise<FileSystemEntry[]> {
+    const all: FileSystemEntry[] = [];
+    while (true) {
+        const batch = await new Promise<FileSystemEntry[]>((resolve, reject) =>
+            reader.readEntries(resolve, reject),
+        );
+        if (!batch.length) break;
+        all.push(...batch);
+    }
+    return all;
+}
+
+async function readEntry(entry: FileSystemEntry): Promise<File[]> {
+    if (entry.isFile) {
+        return new Promise((resolve, reject) => {
+            (entry as FileSystemFileEntry).file((file) => {
+                Object.defineProperty(file, "webkitRelativePath", {
+                    value: entry.fullPath.slice(1),
+                    writable: false,
+                });
+                resolve([file]);
+            }, reject);
+        });
+    }
+
+    if (entry.isDirectory) {
+        const reader = (entry as FileSystemDirectoryEntry).createReader();
+        const entries = await readAllEntries(reader);
+        const nested = await Promise.all(entries.map(readEntry));
+        return nested.flat();
+    }
+
+    return [];
 }
 
 export default function UploadFolder({
@@ -17,22 +54,23 @@ export default function UploadFolder({
     const [stage, setStage] = useState<Stage>("idle");
     const [progress, setProgress] = useState(0);
     const [filename, setFilename] = useState("");
-    const [error, setError] = useState("");
+    const [message, setMessage] = useState<{
+        text: string;
+        ok: boolean;
+    } | null>(null);
+    const [dragging, setDragging] = useState(false);
 
-    async function handleFolderInput(e: React.ChangeEvent<HTMLInputElement>) {
-        const files = Array.from(e.target.files ?? []);
+    async function processFiles(files: File[]) {
         if (!files.length) return;
 
-        setError("");
+        setMessage(null);
         setProgress(0);
 
         try {
-            // Zip stage
             setStage("zipping");
             const zipped = await zipFolder(files);
             setFilename(zipped.name);
 
-            // Get presigned URL
             const res = await fetch("/api/upload", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -42,9 +80,8 @@ export default function UploadFolder({
                     folder,
                 }),
             });
-            const { url, key } = await res.json();
+            const { url } = await res.json();
 
-            // Upload stage
             setStage("uploading");
             await new Promise<void>((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
@@ -54,113 +91,121 @@ export default function UploadFolder({
                         setProgress(Math.round((e.loaded / e.total) * 100));
                     }
                 };
-                xhr.onload = () => {
-                    resolve();
-                };
+                xhr.onload = () => resolve();
                 xhr.onerror = () => reject(new Error("Upload failed"));
                 xhr.send(zipped);
             });
 
-            setStage("done");
-            setProgress(100);
+            setMessage({ text: `✓ ${zipped.name} uploaded`, ok: true });
             onFileChange?.();
         } catch (err) {
-            setStage("error");
-            setError(
-                err instanceof Error ? err.message : "Something went wrong",
-            );
+            setMessage({
+                text: `✗ ${err instanceof Error ? err.message : "Something went wrong"}`,
+                ok: false,
+            });
+        } finally {
+            setStage("idle");
+            setProgress(0);
         }
-
-        e.target.value = "";
     }
 
-    function reset() {
-        setStage("idle");
-        setProgress(0);
-        setFilename("");
-        setError("");
+    async function handleFolderInput(e: React.ChangeEvent<HTMLInputElement>) {
+        const files = Array.from(e.target.files ?? []);
+        e.target.value = "";
+        await processFiles(files);
+    }
+
+    async function handleDrop(e: React.DragEvent) {
+        e.preventDefault();
+        setDragging(false);
+        if (stage !== "idle") return;
+
+        const items = Array.from(e.dataTransfer.items);
+        const entries = items
+            .map((item) => item.webkitGetAsEntry())
+            .filter(Boolean) as FileSystemEntry[];
+
+        const allFiles = (await Promise.all(entries.map(readEntry))).flat();
+        if (!allFiles.length) return;
+
+        await processFiles(allFiles);
     }
 
     return (
-        <div
-            onClick={() => stage === "idle" && inputRef.current?.click()}
-            className="flex min-h-[60px] cursor-pointer flex-col items-center justify-center gap-2 rounded-lg bg-white/80 px-4 py-3 text-sm text-gray-700 transition hover:border-gray-400 hover:text-gray-600"
-        >
-            <input
-                ref={inputRef}
-                type="file"
-                className="hidden"
-                {...({
-                    webkitdirectory: "true",
-                } as React.InputHTMLAttributes<HTMLInputElement>)}
-                onChange={handleFolderInput}
-            />
+        <div className="space-y-1">
+            <div
+                onClick={() => stage === "idle" && inputRef.current?.click()}
+                onDragOver={(e) => {
+                    e.preventDefault();
+                    if (stage === "idle") setDragging(true);
+                }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={handleDrop}
+                className={`flex min-h-[60px] cursor-pointer flex-col items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm transition ${
+                    dragging
+                        ? "bg-white text-gray-900 ring-2 ring-gray-400"
+                        : "bg-white/80 text-gray-700 hover:border-gray-400 hover:text-gray-600"
+                }`}
+            >
+                <input
+                    ref={inputRef}
+                    type="file"
+                    className="hidden"
+                    {...({
+                        webkitdirectory: "true",
+                    } as React.InputHTMLAttributes<HTMLInputElement>)}
+                    onChange={handleFolderInput}
+                />
 
-            {stage === "idle" && (
-                <span>
-                    <u>Browse folders</u> (auto-zip)
-                </span>
-            )}
-
-            {(stage === "zipping" || stage === "uploading") && (
-                <div className="w-full space-y-1">
-                    <div className="flex justify-between text-xs">
-                        <span>{filename}</span>
-                        <span>
-                            {stage === "zipping"
-                                ? "Zipping..."
-                                : `${progress}%`}
-                        </span>
-                    </div>
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
-                        <div
-                            className="h-full rounded-full bg-gray-400 transition-all duration-200"
-                            style={{
-                                width:
-                                    stage === "zipping"
-                                        ? "100%"
-                                        : `${progress}%`,
-                            }}
-                        />
-                    </div>
-                    <p className="text-xs text-gray-400">
-                        {stage === "zipping"
-                            ? "Compressing files..."
-                            : "Uploading to S3..."}
-                    </p>
-                </div>
-            )}
-
-            {stage === "done" && (
-                <div className="flex w-full items-center justify-between">
-                    <span className="text-green-500">
-                        ✓ {filename} uploaded
+                {stage === "idle" && (
+                    <span>
+                        {dragging ? (
+                            "Drop to zip & upload"
+                        ) : (
+                            <>
+                                📁 Drag & Drop your folders or <u>Browse</u>{" "}
+                                (auto-zip)
+                            </>
+                        )}
                     </span>
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            reset();
-                        }}
-                        className="text-xs text-gray-400 hover:text-gray-600"
-                    >
-                        upload another
-                    </button>
-                </div>
-            )}
+                )}
 
-            {stage === "error" && (
-                <div className="flex w-full items-center justify-between">
-                    <span className="text-red-500">✗ {error}</span>
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            reset();
-                        }}
-                        className="text-xs text-gray-400 hover:text-gray-600"
-                    >
-                        try again
-                    </button>
-                </div>
+                {(stage === "zipping" || stage === "uploading") && (
+                    <div className="w-full space-y-1">
+                        <div className="flex justify-between text-xs">
+                            <span>{filename}</span>
+                            <span>
+                                {stage === "zipping"
+                                    ? "Zipping..."
+                                    : `${progress}%`}
+                            </span>
+                        </div>
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
+                            <div
+                                className="h-full rounded-full bg-gray-400 transition-all duration-200"
+                                style={{
+                                    width:
+                                        stage === "zipping"
+                                            ? "100%"
+                                            : `${progress}%`,
+                                }}
+                            />
+                        </div>
+                        <p className="text-xs text-gray-400">
+                            {stage === "zipping"
+                                ? "Compressing files..."
+                                : "Uploading to S3..."}
+                        </p>
+                    </div>
+                )}
+            </div>
+
+            {message && (
+                <p
+                    className={`text-xs ${message.ok ? "text-green-500" : "text-red-500"}`}
+                >
+                    {message.text}
+                </p>
             )}
         </div>
     );
