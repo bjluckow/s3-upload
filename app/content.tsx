@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Upload from "@/components/Upload";
 import FileBrowser from "@/components/FileBrowser";
+import FolderPicker from "@/components/FolderPicker";
 
 export default function HomePageContent() {
     const searchParams = useSearchParams();
@@ -24,16 +25,13 @@ export default function HomePageContent() {
 
     return (
         <div className="space-y-8 p-16">
-            {!locked && (
-                <section>
-                    <h2 className="mb-2 text-lg font-semibold">Folder </h2>
+            <section>
+                <h2 className="mb-2 text-lg font-semibold">Folder</h2>
+                {!locked ? (
                     <form onSubmit={handleFolderSubmit} className="flex gap-2">
-                        <input
-                            type="text"
+                        <FolderPicker
                             value={folderInput}
-                            onChange={(e) => setFolderInput(e.target.value)}
-                            placeholder="uploads"
-                            className="flex-1 rounded border border-white/10 bg-transparent px-3 py-1 text-sm"
+                            onChange={setFolderInput}
                         />
                         <button
                             type="submit"
@@ -42,19 +40,16 @@ export default function HomePageContent() {
                             Set
                         </button>
                     </form>
-                </section>
-            )}
+                ) : (
+                    <p className="text-sm opacity-50">
+                        Uploading to <b className="opacity-100">{folder}</b>
+                    </p>
+                )}
+            </section>
 
             <section>
                 <h2 className="mb-4 text-lg font-semibold">
                     Upload to <span className="opacity-60">{folder}</span>{" "}
-                    <span className="opacity-30">
-                        (powered by{" "}
-                        <a href="https://pqina.nl" className="underline">
-                            pqina.nl
-                        </a>
-                        )
-                    </span>
                 </h2>
                 <Upload
                     folder={folder}
