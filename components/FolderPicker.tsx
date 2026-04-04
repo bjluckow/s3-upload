@@ -1,18 +1,24 @@
-'use client';
-import { useEffect, useRef, useState } from 'react';
+"use client";
+import { formatSize } from "@/lib/format";
+import { useEffect, useRef, useState } from "react";
 
 interface FolderPickerProps {
     value: string;
     onChange: (folder: string) => void;
 }
 
+interface FolderEntry {
+    name: string;
+    size: number;
+}
+
 export default function FolderPicker({ value, onChange }: FolderPickerProps) {
-    const [folders, setFolders] = useState<string[]>([]);
+    const [folders, setFolders] = useState<FolderEntry[]>([]);
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        fetch('/api/folders')
+        fetch("/api/folders")
             .then((r) => r.json())
             .then((data) => setFolders(data.folders ?? []));
     }, []);
@@ -24,8 +30,8 @@ export default function FolderPicker({ value, onChange }: FolderPickerProps) {
                 setOpen(false);
             }
         }
-        document.addEventListener('mousedown', handleClick);
-        return () => document.removeEventListener('mousedown', handleClick);
+        document.addEventListener("mousedown", handleClick);
+        return () => document.removeEventListener("mousedown", handleClick);
     }, []);
 
     return (
@@ -43,7 +49,7 @@ export default function FolderPicker({ value, onChange }: FolderPickerProps) {
                     <button
                         type="button"
                         onClick={() => setOpen((o) => !o)}
-                        className="rounded border border-white/10 px-2 py-1 text-sm opacity-50 hover:opacity-100 transition-opacity"
+                        className="rounded border border-white/10 px-2 py-1 text-sm opacity-50 transition-opacity hover:opacity-100"
                     >
                         ▾
                     </button>
@@ -54,13 +60,15 @@ export default function FolderPicker({ value, onChange }: FolderPickerProps) {
                 <div className="absolute z-10 mt-1 w-full rounded border border-white/10 bg-neutral-900 shadow-lg">
                     {folders.map((f) => (
                         <button
-                            key={f}
+                            key={f.name}
                             type="button"
-                            onClick={() => { onChange(f); setOpen(false); }}
-                            className={`w-full px-3 py-2 text-left text-sm hover:bg-white/10 transition-colors
-                                ${value === f ? 'opacity-100' : 'opacity-50'}`}
+                            onClick={() => {
+                                onChange(f.name);
+                                setOpen(false);
+                            }}
+                            className={`w-full px-3 py-2 text-left text-sm transition-colors hover:bg-white/10 ${value === f.name ? "opacity-100" : "opacity-50"}`}
                         >
-                            📁 {f}
+                            📁 {f.name} ({formatSize(f.size)})
                         </button>
                     ))}
                 </div>

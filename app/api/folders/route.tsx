@@ -7,7 +7,7 @@ export async function GET() {
     if (!session && !!process.env.AUTH_DOMAIN)
         return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-    const folders = new Set<string>();
+    const folderSizes = new Map<string, number>();
     let token: string | undefined;
 
     do {
@@ -21,15 +21,21 @@ export async function GET() {
         for (const obj of Contents) {
             if (!obj.Key) continue;
             const parts = obj.Key.split("/");
-            // Add every prefix level, e.g. "a", "a/b", "a/b/c"
             for (let i = 1; i < parts.length; i++) {
-                folders.add(parts.slice(0, i).join("/"));
+                const prefix = parts.slice(0, i).join("/");
+                folderSizes.set(
+                    prefix,
+                    (folderSizes.get(prefix) ?? 0) + (obj.Size ?? 0),
+                );
             }
         }
 
         token = NextContinuationToken;
     } while (token);
 
-    return Response.json({ folders: Array.from(folders).sort() });
+    return Response.json({
+        folders: Array.from(folderSizes.entries())
+            .map(([name, size]) => ({ name, size }))
+            .sort((a, b) => a.name.localeCompare(b.name)),
+    });
 }
-
