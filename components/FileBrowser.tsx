@@ -55,6 +55,20 @@ export default function FileBrowser({
             .finally(() => setLoading(false));
     }
 
+    async function handleDelete(key: string) {
+        if (!confirm(`Delete ${key.split("/").pop()}?`)) return;
+
+        await fetch("/api/upload/key", {
+            method: "DELETE",
+            body: key,
+        });
+
+        setFiles((prev) => prev.filter((f) => f.key !== key));
+        setSearchResults((prev) =>
+            prev ? prev.filter((f) => f.key !== key) : null,
+        );
+    }
+
     useEffect(() => {
         fetchFiles();
     }, [refreshKey, folder]);
@@ -90,14 +104,22 @@ export default function FileBrowser({
                                 {new Date(f.lastModified).toLocaleDateString()}
                             </td>
                             <td className="py-2 text-right">
-                                <a
-                                    href={f.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-500 hover:opacity-70"
-                                >
-                                    download
-                                </a>
+                                <div className="inline-flex gap-3">
+                                    <a
+                                        href={f.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-500 hover:opacity-70"
+                                    >
+                                        download
+                                    </a>
+                                    <button
+                                        onClick={() => handleDelete(f.key)}
+                                        className="text-red-500 transition-opacity hover:opacity-70"
+                                    >
+                                        delete
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     ))}
